@@ -128,7 +128,7 @@ for i in image_files:
     # {"img_path": path, "id": id, "yaw": yaw, "pitch": pitch}
     dictionary = dict()
     dictionary['img_path'] = p
-    dictionary['id'] = i.replace('.jpg','')
+    dictionary['id'] = i[0]
     dictionary['yaw'] = yaw
     dictionary['pitch'] = pitch
     dictionary['landmark_points'] = image_points.tolist()
