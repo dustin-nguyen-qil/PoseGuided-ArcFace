@@ -3,10 +3,10 @@
     Compute Pose and perform quantization
 """
 
+# To download retinaFace, we first must pip install retinaface
 # To download dlib, we first must pip install cmake, then pip install dlib
 # pose angles are between -90 to +90
-# In this repo, the path of photos_all_faces is read and get_xyz() function calculates and return the yaw, pitch and landmark points
-# The repo uses the landmarks model stored in Landmarks folder to get teh face keypoints
+# In this repo, the dat path is of photos_all_faces is read and get_xyz() function calculates and return teh yaw, pitch and landmark points
 # The landmark points are returned as x, y pairs of:
 # 1. Nose tip
 # 2. Chin
@@ -16,6 +16,9 @@
 # 6. Right Mouth corner
 # These face yaw, pitch and landmark pints are saved in face_angles.json file in Face_information directory
 
+
+from retinaface import RetinaFace
+import matplotlib.pyplot as plt
 import dlib
 import cv2
 import math
@@ -37,10 +40,14 @@ def get_xyz(path):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     data = np.asarray(gray)
-    rects = detector(data, 1)
+    # rects = detector(data, 1)
+
+    facial_area = find_landmarks(image)
+
+    rects = dlib.rectangle(facial_area[0], facial_area[1], facial_area[2], facial_area[3])
 
     #making an assumption on the angles here
-    if len(rects) == 0:
+    if rects == 0:
         # return np.nan, np.nan, np.nan
         return 0, 0, np.array([(0, 0),  # Nose tip
         (0, 0),  # Chin
@@ -50,7 +57,7 @@ def get_xyz(path):
         (0, 0)  # Right mouth corner
     ], dtype="double")
 
-    shape = predictor(data, rects[0])
+    shape = predictor(data, rects)
 
     # dim = (256, 256)
     #image = cv2.imread("Test_images/b_cam_0_porF_00.jpg")
@@ -117,12 +124,40 @@ def get_xyz(path):
     return pitch, yaw, image_points
 
 
+def find_landmarks(image):
+
+    resp = RetinaFace.detect_faces(image, threshold = 0.01)
+    print(len(resp))
+    if len(resp) == 0:
+        print('Is null')
+        return 0
+
+    for key in resp:
+        identity = resp[key]
+        facial_area = identity["facial_area"]
+        break
+
+    return facial_area
+
+
+# # print(get_xyz('photos_all_faces/a_gp_0_ef_06.jpg'))
+# image = cv2.imread('photos_all_faces/b_gp_5_ef_00.jpg')
+# pitch, yaw, image_points = get_xyz('photos_all_faces/b_gp_5_ef_00.jpg')
+#
+# for p in image_points:
+#     cv2.circle(image, (int(p[0]), int(p[1])), 1, (0, 0, 255), -1)
+#
+# plt.imshow(image[:, :, ::-1])
+# plt.axis('off')
+# plt.show()
+
 path = 'photos_all_faces/'
 image_files = [f for f in os.listdir(path) if f.endswith('.jpg')]
 face_angles_list=[]
 
 for i in image_files:
     p = os.path.join(path, i)
+    print(i)
     pitch, yaw, image_points = get_xyz(p)
 
     # {"img_path": path, "id": id, "yaw": yaw, "pitch": pitch}
@@ -141,6 +176,5 @@ print(face_angles_list)
 
 # store the info contained in teh dict as json
 json_object = json.dumps(face_angles_list, indent=2)
-with open("Face_information/face_angles.json", "w") as outfile:
+with open("Face_information/face_angles_retinaFace.json", "w") as outfile:
     json.dump(json_object, outfile)
-
