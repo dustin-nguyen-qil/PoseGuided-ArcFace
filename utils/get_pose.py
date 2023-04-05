@@ -46,7 +46,7 @@ def get_xyz(path):
 
     rects = dlib.rectangle(facial_area[0], facial_area[1], facial_area[2], facial_area[3])
 
-    #making an assumption on the angles here
+    # when no face detected
     if rects == 0:
         # return np.nan, np.nan, np.nan
         return 0, 0, np.array([(0, 0),  # Nose tip
@@ -140,41 +140,20 @@ def find_landmarks(image):
     return facial_area
 
 
-# # print(get_xyz('photos_all_faces/a_gp_0_ef_06.jpg'))
-# image = cv2.imread('photos_all_faces/b_gp_5_ef_00.jpg')
-# pitch, yaw, image_points = get_xyz('photos_all_faces/b_gp_5_ef_00.jpg')
-#
-# for p in image_points:
-#     cv2.circle(image, (int(p[0]), int(p[1])), 1, (0, 0, 255), -1)
-#
-# plt.imshow(image[:, :, ::-1])
-# plt.axis('off')
-# plt.show()
-
 path = 'photos_all_faces/'
 image_files = [f for f in os.listdir(path) if f.endswith('.jpg')]
 face_angles_list=[]
 
 for i in image_files:
     p = os.path.join(path, i)
-    print(i)
     pitch, yaw, image_points = get_xyz(p)
 
-    # {"img_path": path, "id": id, "yaw": yaw, "pitch": pitch}
-    dictionary = dict()
-    dictionary['img_path'] = p
-    dictionary['id'] = i[0]
-    dictionary['yaw'] = yaw
-    dictionary['pitch'] = pitch
-    dictionary['landmark_points'] = image_points.tolist()
+    face_angles_list.append({"img_path": p, "p_id": i[0], "yaw": yaw, "pitch": pitch, "landmark_points": image_points.tolist()}
 
-    face_angles_list.append(dictionary)
 
-    # print(p, get_xyz(p))
-
-print(face_angles_list)
+# print(face_angles_list)
 
 # store the info contained in teh dict as json
-json_object = json.dumps(face_angles_list, indent=2)
+# json_object = json.dumps(face_angles_list, indent=2)
 with open("Face_information/face_angles_retinaFace.json", "w") as outfile:
-    json.dump(json_object, outfile)
+    json.dump(face_angles_list, outfile, indent=2)
