@@ -22,13 +22,11 @@ def get_config(training = True):
                     trans.ToTensor(),
                     trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                 ])
-    # conf.data_mode = 'emore'
     conf.data_mode = 'droneface'
+    conf.pose = True # train model on DroneFace with Pose
     conf.droneface_folder = conf.data_path/'photos_all_faces'/'train'
-    conf.vgg_folder = conf.data_path/'faces_vgg_112x112'
-    conf.ms1m_folder = conf.data_path/'faces_ms1m_112x112'
-    conf.emore_folder = conf.data_path/'faces_emore'
-    # conf.batch_size = 100 # irse net depth 50
+    conf.droneface_train_json = conf.data_path/'photos_all_faces'/'train.json'
+
     conf.batch_size = 32 # retrain with droneface 
 #   conf.batch_size = 200 # mobilefacenet
 #--------------------Training Config ------------------------    

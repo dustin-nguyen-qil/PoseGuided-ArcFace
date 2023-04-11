@@ -148,12 +148,12 @@ for i in image_files:
     p = os.path.join(path, i)
     pitch, yaw, image_points = get_xyz(p)
 
-    face_angles_list.append({"img_path": p, "p_id": i[0], "yaw": yaw, "pitch": pitch, "landmark_points": image_points.tolist()}
+    face_angles_list.append({"img_path": p, "p_id": i[0], "yaw": yaw, "pitch": pitch, "landmark_points": image_points.tolist()})
 
 
 # print(face_angles_list)
 
 # store the info contained in teh dict as json
 # json_object = json.dumps(face_angles_list, indent=2)
-with open("Face_information/face_angles_retinaFace.json", "w") as outfile:
+with open("../Face_information/face_angles_retinaFace.json", "w") as outfile:
     json.dump(face_angles_list, outfile, indent=2)

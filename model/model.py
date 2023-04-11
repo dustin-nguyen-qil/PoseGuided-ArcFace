@@ -4,7 +4,7 @@ import torch
 from collections import namedtuple
 import math
 import pdb
-
+import numpy as np
 ##################################  Original Arcface Model #############################################################
 
 class Flatten(Module):
@@ -305,45 +305,58 @@ class Am_softmax(Module):
         return output
 
 class PoseArcFace(Module):
-    def __init__(self, embedding_size, class_num, s, m1, pose_controler, m2) -> None:
+    def __init__(self, embedding_size, classnum = 8, s=64., m1=0.5, m2=0.1) -> None:
         """ 
             m1 is base margin, m2 is additional margin based on pose
             default: s = 64, m1 = 0.5 as in ArcFace paper
-            pose_controler controls how much more margin should be added to the base margin
+            yaw controls how much more margin should be added to the base margin
             profile faces will lead to higher pose_controler
         """
         super(PoseArcFace, self).__init__()
-        self.class_num = class_num
+        self.class_num = classnum
         self.embedding_size = embedding_size
         self.s = s
         # pose-guided margin
-        self.m = m1 + pose_controler * m2  
+        self.m1 = m1 
+        self.m2 = m2  
         # initialize weight matrix
-        self.weight = Parameter(torch.Tensor(embedding_size, class_num))
-        self.weight.data.uniform_(1, -1).renorm_(2, 1, 1e-5).mul_(1e5)
-
-        self.cos_m = math.cos(self.m)
-        self.sin_m = math.sin(self.m)
-        self.threshold = math.cos(math.pi - self.m)
-        self.mm = self.sin_m * self.m
+        self.kernel = Parameter(torch.Tensor(embedding_size,classnum))
+        # initial kernel
+        self.kernel.data.uniform_(-1, 1).renorm_(2,1,1e-5).mul_(1e5)
     
-    def forward(self, input, label):
+    def forward(self, input, label, yaw):
         nB = len(input)
-        weight_norm = l2_norm(self.weight, axis = 0)
-        # cosine similarity between input embedding and n weight vectors of n classes
-        cos_theta = torch.mm(input, weight_norm)
-        cos_theta = cos_theta.clamp(-1, 1) # clamp to range [-1, 1]
-        cos_theta_2 = torch.pow(cos_theta, 2)
-        sin_theta = torch.sqrt(1 - cos_theta_2)
+        weight_norm = l2_norm(self.kernel, axis = 0)
+        output = []
 
-        cos_theta_m = cos_theta * self.cos_m - sin_theta * self.sin_m
-        cond_v = cos_theta - self.threshold
-        cond_mask = cond_v <= 0
-        keep_val = (cos_theta - self.mm) 
-        cos_theta_m[cond_mask] = keep_val[cond_mask] # can use torch.where if new version of torch
-        output = cos_theta * 1.0
-        idx_ = torch.arange(0, nB, dtype=torch.long)
-        output[idx_, label] = cos_theta_m[idx_, label]
-        output *= self.s
+        for i in range(nB):
+            ratio = yaw[i].numpy() / 90
+            m = self.m1 + ratio * self.m2 
+            cos_m = math.cos(m)
+            sin_m = math.sin(m)
+            threshold = math.cos(math.pi - m)
+            mm = sin_m * m
 
-        return output
+            emb = input[i]
+            # cosine similarity between input embedding and n weight vectors of n classes
+            cos_theta = torch.mm(emb.unsqueeze(0), weight_norm)
+            cos_theta = cos_theta.clamp(-1, 1) # clamp to range [-1, 1]
+            cos_theta_2 = torch.pow(cos_theta, 2)
+            sin_theta = torch.sqrt(1 - cos_theta_2)
+
+            cos_theta_m = cos_theta * cos_m - sin_theta * sin_m
+            cond_v = cos_theta - threshold
+            cond_mask = cond_v <= 0
+            keep_val = (cos_theta - mm) 
+            cos_theta_m[cond_mask] = keep_val[cond_mask]
+            out = cos_theta.squeeze(0) * 1.0
+            out[label[i]] = cos_theta_m.squeeze(0)[label[i]]
+            out *= self.s
+            output.append(out)
+         # can use torch.where if new version of torch
+        
+        # idx_ = torch.arange(0, nB, dtype=torch.long)
+        # output[idx_, label] = cos_theta_m[idx_, label]
+        # output *= self.s
+
+        return torch.stack(output)

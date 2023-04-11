@@ -11,10 +11,36 @@ import pickle
 import torch
 import mxnet as mx
 from tqdm import tqdm
+import json
 
 def de_preprocess(tensor):
     return tensor*0.5 + 0.5
+
+
+class DroneFace(Dataset):
+    def __init__(self, json_path, transform) -> None:
+        super().__init__()
+        with open(json_path, 'rb') as f:
+            self.img_list = json.load(f)
+        self.json_path = json_path
+        self.transform = transform
     
+    # def get_img_list(self):
+        
+    #     return img_list
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, index):
+        item = self.img_list[index]
+        img_path = item['img_path']
+        p_id = item['p_id']
+        yaw = item['yaw']
+        img = Image.open(img_path)
+        img = self.transform(img)
+        return img, p_id, abs(yaw)
+
 def get_train_dataset(imgs_folder):
     train_transform = trans.Compose([
         trans.RandomHorizontalFlip(),
@@ -22,8 +48,11 @@ def get_train_dataset(imgs_folder):
         trans.ToTensor(),
         trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
-    ds = ImageFolder(imgs_folder, train_transform)
-    class_num = ds[-1][1] + 1
+        
+    # ds = ImageFolder(imgs_folder, train_transform)
+    ds = DroneFace(imgs_folder, train_transform)
+    # class_num = ds[-1][1] + 1
+    class_num = 8
     return ds, class_num
 
 def get_train_loader(conf):
@@ -47,7 +76,7 @@ def get_train_loader(conf):
     elif conf.data_mode == 'emore':
         ds, class_num = get_train_dataset(conf.emore_folder/'imgs')
     elif conf.data_mode == 'droneface':
-        ds, class_num = get_train_dataset(conf.droneface_folder)
+        ds, class_num = get_train_dataset(conf.droneface_train_json)
     loader = DataLoader(ds, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
     return loader, class_num 
     

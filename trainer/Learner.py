@@ -1,5 +1,5 @@
 from data.data_pipe import de_preprocess, get_train_loader, get_val_data
-from model.model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
+from model.model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm, PoseArcFace
 from verifacation import evaluate
 import torch
 from torch import optim
@@ -32,7 +32,10 @@ class face_learner(object):
 
             self.writer = SummaryWriter(conf.log_path)
             self.step = 0
-            self.head = Arcface(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
+            if conf.pose:
+                self.head = PoseArcFace(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
+            else:
+                self.head = Arcface(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
 
             print('Model head generated')
 
@@ -54,9 +57,9 @@ class face_learner(object):
 
             print('optimizers generated')    
             self.board_loss_every = len(self.loader)//3
-            # self.evaluate_every = len(self.loader)//10
+        
             self.save_every = len(self.loader)//3
-            # self.agedb_30, self.cfp_fp, self.lfw, self.agedb_30_issame, self.cfp_fp_issame, self.lfw_issame = get_val_data(self.loader.dataset.root.parent)
+            
         else:
             self.threshold = conf.threshold
     
@@ -75,21 +78,7 @@ class face_learner(object):
             torch.save(
                 self.optimizer.state_dict(), save_path /
                 ('optimizer:{}_step:{}_{}.pth'.format(get_time(), self.step, extra)))
-    # def save_state(self, conf, accuracy, to_save_folder=False, extra=None, model_only=False):
-    #     if to_save_folder:
-    #         save_path = conf.save_path
-    #     else:
-    #         save_path = conf.model_path
-    #     torch.save(
-    #         self.model.state_dict(), save_path /
-    #         ('model_{}_accuracy:{}_step:{}_{}.pth'.format(get_time(), accuracy, self.step, extra)))
-    #     if not model_only:
-    #         torch.save(
-    #             self.head.state_dict(), save_path /
-    #             ('head_{}_accuracy:{}_step:{}_{}.pth'.format(get_time(), accuracy, self.step, extra)))
-    #         torch.save(
-    #             self.optimizer.state_dict(), save_path /
-    #             ('optimizer_{}_accuracy:{}_step:{}_{}.pth'.format(get_time(), accuracy, self.step, extra)))
+    
     
     def load_state(self, conf, fixed_str, from_save_folder=False, model_only=False):
         if from_save_folder:
@@ -210,12 +199,13 @@ class face_learner(object):
                 self.schedule_lr()      
             if e == self.milestones[2]:
                 self.schedule_lr()                                 
-            for imgs, labels in tqdm(iter(self.loader)):
+            for imgs, labels, yaws in tqdm(iter(self.loader)):
                 imgs = imgs.to(conf.device)
                 labels = labels.to(conf.device)
+                
                 self.optimizer.zero_grad()
                 embeddings = self.model(imgs)
-                thetas = self.head(embeddings, labels)
+                thetas = self.head(embeddings, labels, yaws)
                 loss = conf.ce_loss(thetas, labels)
                 loss.backward()
                 running_loss += loss.item()
@@ -225,22 +215,12 @@ class face_learner(object):
                     loss_board = running_loss / self.board_loss_every
                     self.writer.add_scalar('train_loss', loss_board, self.step)
                     running_loss = 0.
-                
-                # if self.step % self.evaluate_every == 0 and self.step != 0:
-                #     accuracy, best_threshold, roc_curve_tensor = self.evaluate(conf, self.agedb_30, self.agedb_30_issame)
-                #     self.board_val('agedb_30', accuracy, best_threshold, roc_curve_tensor)
-                #     accuracy, best_threshold, roc_curve_tensor = self.evaluate(conf, self.lfw, self.lfw_issame)
-                #     self.board_val('lfw', accuracy, best_threshold, roc_curve_tensor)
-                #     accuracy, best_threshold, roc_curve_tensor = self.evaluate(conf, self.cfp_fp, self.cfp_fp_issame)
-                #     self.board_val('cfp_fp', accuracy, best_threshold, roc_curve_tensor)
-                #     self.model.train()
-                # if self.step % self.save_every == 0 and self.step != 0:
-                #     self.save_state(conf)
                     
                 self.step += 1
-                
-        self.save_state(conf, to_save_folder=True, extra='final_droneface')
-
+        if conf.pose:       
+            self.save_state(conf, to_save_folder=True, extra='final_droneface_pose_with_pose')
+        else:
+            self.save_state(conf, to_save_folder=True, extra='final_droneface_pose')
     def schedule_lr(self):
         for params in self.optimizer.param_groups:                
             params['lr'] /= 10
