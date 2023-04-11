@@ -41,42 +41,26 @@ class DroneFace(Dataset):
         img = self.transform(img)
         return img, p_id, abs(yaw)
 
-def get_train_dataset(imgs_folder):
+def get_train_dataset(imgs_folder, pose=False):
     train_transform = trans.Compose([
         trans.RandomHorizontalFlip(),
         trans.Resize((112, 112)),
         trans.ToTensor(),
         trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
-        
-    # ds = ImageFolder(imgs_folder, train_transform)
-    ds = DroneFace(imgs_folder, train_transform)
-    # class_num = ds[-1][1] + 1
+    if pose:    
+        ds = DroneFace(imgs_folder, train_transform)
+    else:
+        ds = ImageFolder(imgs_folder, train_transform)
     class_num = 8
     return ds, class_num
 
 def get_train_loader(conf):
-    if conf.data_mode in ['ms1m', 'concat']:
-        ms1m_ds, ms1m_class_num = get_train_dataset(conf.ms1m_folder/'imgs')
-        print('ms1m loader generated')
-    if conf.data_mode in ['vgg', 'concat']:
-        vgg_ds, vgg_class_num = get_train_dataset(conf.vgg_folder/'imgs')
-        print('vgg loader generated')        
-    if conf.data_mode == 'vgg':
-        ds = vgg_ds
-        class_num = vgg_class_num
-    elif conf.data_mode == 'ms1m':
-        ds = ms1m_ds
-        class_num = ms1m_class_num
-    elif conf.data_mode == 'concat':
-        for i,(url,label) in enumerate(vgg_ds.imgs):
-            vgg_ds.imgs[i] = (url, label + ms1m_class_num)
-        ds = ConcatDataset([ms1m_ds,vgg_ds])
-        class_num = vgg_class_num + ms1m_class_num
-    elif conf.data_mode == 'emore':
-        ds, class_num = get_train_dataset(conf.emore_folder/'imgs')
-    elif conf.data_mode == 'droneface':
-        ds, class_num = get_train_dataset(conf.droneface_train_json)
+    if conf.data_mode == 'droneface':
+        if conf.pose:
+            ds, class_num = get_train_dataset(conf.droneface_train_json, conf.pose)
+        else:
+            ds, class_num = get_train_dataset(conf.droneface_folder, conf.pose)
     loader = DataLoader(ds, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
     return loader, class_num 
     
