@@ -31,8 +31,8 @@ For the installation of torch using "pip" run the following command
 ### Pre-trained model
 
 You can download the Original ArcFace and the Proposed Pose-guided models pretrained on DroneFace using the following urls:
-- [Model trained without Pose](https://onedrive.live.com/?authkey=%21AOw5TZL8cWlj10I&cid=CEC0E1F8F0542A13&id=CEC0E1F8F0542A13%21835&parId=root&action=locate)
-- [Proposed Pose-guided model](https://onedrive.live.com/?authkey=%21AIweh1IfiuF9vm4&cid=CEC0E1F8F0542A13&id=CEC0E1F8F0542A13%21836&parId=root&o=OneUp)
+- [Original ArcFace](https://uofh-my.sharepoint.com/:u:/g/personal/dnguy222_cougarnet_uh_edu/ES_2h294bKlEljg2k7yyOwABweauZqs1aiWY63ib079jfQ?e=If2GM5)
+- [Proposed Pose-guided model](https://uofh-my.sharepoint.com/:u:/g/personal/dnguy222_cougarnet_uh_edu/Efl7CKovvR1HuwVCGdu5OkcB7wjstZRZDqpOvCb6nzF1xw?e=ngBrs0)
 
 Create a folder named `work_space`. Create two subfolders `models` and `save`. Put the pretrained models under `models` 
 
@@ -48,7 +48,7 @@ workspace
 
 Download the DroneFace dataset and its jsons file containing metadata for training and testing from here
 
-- [DroneFace with jsons](https://pan.baidu.com/s/1eXohwNBHbbKXh5KHyItVhQ)
+- [DroneFace with jsons](https://uofh-my.sharepoint.com/:u:/g/personal/dnguy222_cougarnet_uh_edu/EU5O6B4LaqNEoJfAxSlpc64BgAYk1oTPFFCA3o71dQ74OA?e=U337Pb)
 
 Unzip the file, make sure the parent folder of the dataset has name `photos_all_faces` and the structure of the dataset is like
 
@@ -66,6 +66,7 @@ Now put `photos_all_faces` inside `data`
 You can run evaluation to see how our proposed model outperform original ArcFace model by going to `evaluation.ipynb` and run the code cell by cell.
 ## Training
 
+Trained models will be saved under `work_space/save`, with 
 ### Train DroneFace with Original ArcFace model 
 
 You can run training on the original ArcFace model by executing
