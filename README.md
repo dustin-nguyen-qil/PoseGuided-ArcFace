@@ -38,10 +38,10 @@ Create a folder named `work_space`. Create two subfolders `models` and `save`. P
 
 ```
 workspace
-            ---> models
-                        ---> model_final_droneface.pth
-                        ---> model_final_droneface_pose.pth
-            ---> save
+---> models
+    ---> model_final_droneface.pth
+    ---> model_final_droneface_pose.pth
+---> save
 ``` 
 
 ### Prepare dataset
@@ -50,17 +50,18 @@ Download the DroneFace dataset and its jsons file containing metadata for traini
 
 - [DroneFace with jsons](https://uofh-my.sharepoint.com/:u:/g/personal/dnguy222_cougarnet_uh_edu/EU5O6B4LaqNEoJfAxSlpc64BgAYk1oTPFFCA3o71dQ74OA?e=U337Pb)
 
-Unzip the file, make sure the parent folder of the dataset has name `photos_all_faces` and the structure of the dataset is like
+Unzip the file, then put `photos_all_faces` inside `data`
 
 ```
-photos_all_faces/
-            ---> train
-            ---> test
-            ---> train.json
-            ---> test.json
+data
+--->photos_all_faces/
+    ---> train
+    ---> test
+    ---> train.json
+    ---> test.json
 ```
 
-Now put `photos_all_faces` inside `data`
+
 ### Run evaluation
 
 You can run evaluation to see how our proposed model outperform original ArcFace model by going to `evaluation.ipynb` and run the code cell by cell.
