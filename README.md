@@ -26,57 +26,63 @@ For the installation of torch using "pip" run the following command
     $ pip3 install torch torchvision -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
-## Project Setup
+## Evaluation and Comparision 
 
 ### Pre-trained model
 
-The pretrained model of original ArcFace has been provided in the <b> work_space/model </b> and <b> work_space/save </b> folder. If you want to download the models you can follow the following url:
-- [IR-SE50 @ Onedrive](https://onedrive.live.com/?authkey=%21AOw5TZL8cWlj10I&cid=CEC0E1F8F0542A13&id=CEC0E1F8F0542A13%21835&parId=root&action=locate)
-- [Mobilefacenet @ OneDrive](https://onedrive.live.com/?authkey=%21AIweh1IfiuF9vm4&cid=CEC0E1F8F0542A13&id=CEC0E1F8F0542A13%21836&parId=root&o=OneUp)
+You can download the Original ArcFace and the Proposed Pose-guided models pretrained on DroneFace using the following urls:
+- [Model trained without Pose](https://onedrive.live.com/?authkey=%21AOw5TZL8cWlj10I&cid=CEC0E1F8F0542A13&id=CEC0E1F8F0542A13%21835&parId=root&action=locate)
+- [Proposed Pose-guided model](https://onedrive.live.com/?authkey=%21AIweh1IfiuF9vm4&cid=CEC0E1F8F0542A13&id=CEC0E1F8F0542A13%21836&parId=root&o=OneUp)
 
+Create a folder named `work_space`. Create two subfolders `models` and `save`. Put the pretrained models under `models` 
 
-## Training
+```
+workspace
+            ---> models
+                        ---> model_final_droneface.pth
+                        ---> model_final_droneface_pose.pth
+            ---> save
+``` 
 
 ### Prepare dataset
-If you want to run training, download the refined dataset: (emore recommended)
 
-- [emore dataset @ BaiduDrive](https://pan.baidu.com/s/1eXohwNBHbbKXh5KHyItVhQ)
-- [emore dataset @ Dropbox](https://www.dropbox.com/s/wpx6tqjf0y5mf6r/faces_ms1m-refine-v2_112x112.zip?dl=0)
+Download the DroneFace dataset and its jsons file containing metadata for training and testing from here
 
+- [DroneFace with jsons](https://pan.baidu.com/s/1eXohwNBHbbKXh5KHyItVhQ)
 
-After unzip the files to 'data' path, run :
-
-  ```python
-    $ python data/prepare_data.py
-  ```
-
-This will take few hours depending on your system configuration.
-
-After the execution, you should find following structure:
+Unzip the file, make sure the parent folder of the dataset has name `photos_all_faces` and the structure of the dataset is like
 
 ```
-faces_emore/
-            ---> agedb_30
-            ---> calfw
-            ---> cfp_ff
-            --->  cfp_fp
-            ---> cfp_fp
-            ---> cplfw
-            --->imgs
-            ---> lfw
-            ---> vgg2_fp
+photos_all_faces/
+            ---> train
+            ---> test
+            ---> train.json
+            ---> test.json
 ```
 
-### Training
-Execute the following command for training
-```python
-    $ python train.py -n [network_mode] -b [batch_size] -e [epochs]
-```
-where `network_mode = [ir_se, mobilefacenet]`. For other training options, run
+Now put `photos_all_faces` inside `data`
+### Run evaluation
+
+You can run evaluation to see how our proposed model outperform original ArcFace model by going to `evaluation.ipynb` and run the code cell by cell.
+## Training
+
+### Train DroneFace with Original ArcFace model 
+
+You can run training on the original ArcFace model by executing
 
 ```python
-    $ python train.py --help
+    $ python train.py -b [batch_size] -e [epochs] -d droneface -p False
 ```
+where `-d` specifies DroneFace dataset for training and `-p = False` means we are training with original ArcFace without consideration of Pose.
+### Train DroneFace with Proposed Pose-guided Model
+
+You can run training on the proposed Pose-Guided model by executing
+
+```python
+    $ python train.py -b [batch_size] -e [epochs] -d droneface -p True
+```
+where `-d` specifies DroneFace dataset for training and `-p = False`.
+
 ## Acknowledments
 
 This project is based on the following repository and ArcFace paper:

@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--batch_size", help="batch_size", default=96, type=int)
     parser.add_argument("-w", "--num_workers", help="workers number", default=3, type=int)
     parser.add_argument("-d", "--data_mode", help="use which database, [vgg, ms1m, emore, concat, droneface]",default='droneface', type=str)
+    parser.add_argument("-p", "--with_pose", help="train with pose", default=True, type=bool)
     args = parser.parse_args()
 
     conf = get_config()
@@ -21,8 +22,9 @@ if __name__ == '__main__':
         conf.use_mobilfacenet = True
     else:
         conf.net_mode = args.net_mode
-        conf.net_depth = args.net_depth    
-    
+        conf.net_depth = args.net_depth   
+
+    conf.pose = args.with_pose
     conf.lr = args.lr
     conf.batch_size = args.batch_size
     conf.num_workers = args.num_workers
