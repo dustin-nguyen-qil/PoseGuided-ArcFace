@@ -54,7 +54,7 @@ Unzip the file, then put `photos_all_faces` inside `data`
 
 ```
 data
---->photos_all_faces/
+---> photos_all_faces/
     ---> train
     ---> test
     ---> train.json
