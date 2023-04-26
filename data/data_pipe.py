@@ -2,6 +2,8 @@ from pathlib import Path
 from torch.utils.data import Dataset, ConcatDataset, DataLoader
 from torchvision import transforms as trans
 from torchvision.datasets import ImageFolder
+from torch.utils.data import random_split, Subset
+from sklearn.model_selection import KFold
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import numpy as np
@@ -12,6 +14,8 @@ import torch
 import mxnet as mx
 from tqdm import tqdm
 import json
+from config.config import get_config
+
 
 def de_preprocess(tensor):
     return tensor*0.5 + 0.5
@@ -24,10 +28,6 @@ class DroneFace(Dataset):
             self.img_list = json.load(f)
         self.json_path = json_path
         self.transform = transform
-    
-    # def get_img_list(self):
-        
-    #     return img_list
 
     def __len__(self):
         return len(self.img_list)
@@ -41,28 +41,46 @@ class DroneFace(Dataset):
         img = self.transform(img)
         return img, p_id, abs(yaw)
 
-def get_train_dataset(imgs_folder, pose=False):
+def get_loaders(conf, pose=False):
     train_transform = trans.Compose([
         trans.RandomHorizontalFlip(),
         trans.Resize((112, 112)),
         trans.ToTensor(),
         trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
+    num_folds = conf.num_folds
+    kfold = KFold(n_splits=num_folds, shuffle=False)
     if pose:    
-        ds = DroneFace(imgs_folder, train_transform)
+        ds = DroneFace(conf.droneface_json, train_transform)
     else:
-        ds = ImageFolder(imgs_folder, train_transform)
-    class_num = 8
-    return ds, class_num
+        ds = ImageFolder(conf.droneface_folder, train_transform)
+    
+    # dataset_size = len(ds)
+    # test_size = dataset_size / num_folds
+    splits = kfold.split(ds)
 
-def get_train_loader(conf):
-    if conf.data_mode == 'droneface':
-        if conf.pose:
-            ds, class_num = get_train_dataset(conf.droneface_train_json, conf.pose)
-        else:
-            ds, class_num = get_train_dataset(conf.droneface_folder, conf.pose)
-    loader = DataLoader(ds, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
-    return loader, class_num 
+    loaders = []
+    for fold, (train_idx, test_idx) in enumerate(splits):
+        print(train_idx)
+        train_set = Subset(ds, train_idx)
+        train_loader = DataLoader(train_set, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
+        # train_set = Subset(ds, train_idx[:0.75*len(train_idx)])
+        # val_set = Subset(ds, train_idx[0.75*len(train_idx):])
+        test_set = Subset(ds, test_idx)
+        test_loader = DataLoader(test_set, batch_size=1, shuffle=False, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
+        loaders.append((train_loader, test_loader))
+    class_num = 8
+    return loaders, class_num
+
+# def get_train_loader(conf):
+#     if conf.data_mode == 'droneface':
+#         if conf.pose:
+#             train_sets, test_sets, class_num = get_train_dataset(conf.droneface_json, conf.pose)
+#         else:
+#             train_sets, test_sets, class_num = get_train_dataset(conf.droneface_folder, conf.pose)
+        
+#     loader = DataLoader(ds, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
+#     return loader, class_num 
     
 def load_bin(path, rootdir, transform, image_size=[112,112]):
     if not rootdir.exists():

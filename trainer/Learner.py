@@ -1,4 +1,4 @@
-from data.data_pipe import de_preprocess, get_train_loader, get_val_data
+from data.data_pipe import de_preprocess, get_loaders, get_val_data
 from model.model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm, PoseArcFace
 from verifacation import evaluate
 import torch
@@ -13,6 +13,7 @@ from PIL import Image
 from torchvision import transforms as trans
 import math
 import bcolz
+
 #--------------------Training Config -------------- 
 class face_learner(object):
     def __init__(self, conf, inference=False):
@@ -28,7 +29,8 @@ class face_learner(object):
         
         if not inference:
             self.milestones = conf.milestones
-            self.loader, self.class_num = get_train_loader(conf)        
+            self.num_folds = conf.num_folds
+            self.loaders, self.class_num = get_loaders(conf, pose=True)  
 
             self.writer = SummaryWriter(conf.log_path)
             self.step = 0
@@ -38,6 +40,8 @@ class face_learner(object):
                 self.head = Arcface(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
 
             print('Model head generated')
+
+            
 
             paras_only_bn, paras_wo_bn = separate_bn_paras(self.model)
             
@@ -56,9 +60,9 @@ class face_learner(object):
 #             self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=40, verbose=True)
 
             print('optimizers generated')    
-            self.board_loss_every = len(self.loader)//3
+            # self.board_loss_every = len(self.loaders)//3
         
-            self.save_every = len(self.loader)//3
+            # self.save_every = len(self.loader)//3
             
         else:
             self.threshold = conf.threshold
@@ -190,37 +194,101 @@ class face_learner(object):
 
     def train(self, conf, epochs):
         self.model.train()
-        running_loss = 0.            
-        for e in range(epochs):
-            print('epoch {} started'.format(e))
-            if e == self.milestones[0]:
-                self.schedule_lr()
-            if e == self.milestones[1]:
-                self.schedule_lr()      
-            if e == self.milestones[2]:
-                self.schedule_lr()                                 
-            for imgs, labels, yaws in tqdm(iter(self.loader)):
-                imgs = imgs.to(conf.device)
-                labels = labels.to(conf.device)
-                
-                self.optimizer.zero_grad()
-                embeddings = self.model(imgs)
-                thetas = self.head(embeddings, labels, yaws)
-                loss = conf.ce_loss(thetas, labels)
-                loss.backward()
-                running_loss += loss.item()
-                self.optimizer.step()
-                
-                if self.step % self.board_loss_every == 0 and self.step != 0:
-                    loss_board = running_loss / self.board_loss_every
-                    self.writer.add_scalar('train_loss', loss_board, self.step)
-                    running_loss = 0.
+        epoch_losses_per_fold = {}
+        test_acc_per_fold = []
+        for fold, (train_loader, test_loader) in enumerate(self.loaders):
+            print(f"Fold: {fold} started ============")
+            """
+            Training
+            """
+            epoch_losses_per_fold[fold] = []
+            for e in range(epochs):
+                running_loss = 0.
+                num_corrects = 0
+                total_samples = 0
+                print(f'Epoch {e} in fold {fold} started')
+                if e == self.milestones[0]:
+                    self.schedule_lr()
+                if e == self.milestones[1]:
+                    self.schedule_lr()      
+                if e == self.milestones[2]:
+                    self.schedule_lr()                                 
+                for imgs, labels, yaws in tqdm(iter(train_loader)):
+                    if fold == 0:
+                        labels -= 2
+                    elif fold == 1:
+                        mask = labels > 3
+                        labels[mask] -= 2
+                    elif fold == 2:
+                        mask = labels > 5
+                        labels[mask] -= 2
+                    elif fold == 3:
+                        mask = labels > 7
+                        labels[mask] -= 2
+                    # print(labels)
+                    imgs = imgs.to(conf.device)
+                    labels = labels.to(conf.device)
                     
-                self.step += 1
-        if conf.pose:       
-            self.save_state(conf, to_save_folder=True, extra='final_droneface_pose_with_pose')
-        else:
-            self.save_state(conf, to_save_folder=True, extra='final_droneface_pose')
+                    self.optimizer.zero_grad()
+                    embeddings = self.model(imgs)
+                    thetas = self.head(embeddings, labels, yaws)
+
+                    _, predicted = torch.max(thetas.data, 1)
+                    num_corrects += (predicted == labels).sum().item()
+                    total_samples += labels.size(0)
+
+                    loss = conf.ce_loss(thetas, labels)
+                    loss.backward()
+                    running_loss += loss.item()
+                    self.optimizer.step()
+
+                epoch_loss = running_loss / len(train_loader)
+                epoch_losses_per_fold[fold].append(epoch_loss)
+
+                train_accuracy = num_corrects / total_samples
+
+                if e == epochs - 1:
+                    print(f"==== End training for fold {fold} | Train Acc: {train_accuracy*100:.2f}%")
+                    # if self.step % self.board_loss_every == 0 and self.step != 0:
+                    #     loss_board = running_loss / self.board_loss_every
+                    #     self.writer.add_scalar('train_loss', loss_board, self.step)
+                    #     running_loss = 0.
+                        
+                    # self.step += 1
+            print(f"==== Done training for fold {fold} =====")
+
+            """
+            Testing
+            """
+            print(f"==== Start testing for fold {fold} =====")
+            self.model.eval()
+            running_test_loss = 0.
+            num_test_corrects,total_test_samples = 0, 0 
+            with torch.inference_mode():
+                for imgs, labels, yaws in tqdm(iter(test_loader)):
+                        
+                    labels = labels - min(labels)
+
+                    imgs = imgs.to(conf.device)
+                    labels = labels.to(conf.device)
+                    embeddings = self.model(imgs)
+                    thetas = self.head(embeddings, labels, yaws)
+                    test_loss = conf.ce_loss(thetas, labels)
+                    running_test_loss += test_loss.item()
+
+                    _, predicted = torch.max(thetas.data, 1)
+                    num_test_corrects += (predicted == labels).sum().item()
+                    total_test_samples += labels.size(0)
+
+            test_accuracy = num_test_corrects / total_test_samples
+            test_acc_per_fold.append(test_accuracy)
+
+            print(f"Test Acc of fold {fold}: {test_accuracy*100:.2f}%")
+            print()
+            if conf.pose:       
+                self.save_state(conf, to_save_folder=True, extra=f'fold{fold}_Acc:{test_accuracy}_net_droneface_with_pose')
+            else:
+                self.save_state(conf, to_save_folder=True, extra=f'fold{fold}_Acc:{test_accuracy}_net_droneface_without_pose')
     def schedule_lr(self):
         for params in self.optimizer.param_groups:                
             params['lr'] /= 10

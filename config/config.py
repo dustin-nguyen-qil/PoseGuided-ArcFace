@@ -24,8 +24,8 @@ def get_config(training = True):
                 ])
     conf.data_mode = 'droneface'
     conf.pose = True # train model on DroneFace with Pose
-    conf.droneface_folder = conf.data_path/'photos_all_faces'/'train'
-    conf.droneface_train_json = conf.data_path/'photos_all_faces'/'train.json'
+    conf.droneface_folder = conf.data_path/'photos_all_faces'/'all_data'
+    conf.droneface_train_json = conf.data_path/'photos_all_faces'/'all_data.json'
 
     conf.batch_size = 32 # retrain with droneface 
 #   conf.batch_size = 200 # mobilefacenet
@@ -41,6 +41,7 @@ def get_config(training = True):
 #         conf.num_workers = 4 # when batchsize is 200
         conf.num_workers = 3
         conf.ce_loss = CrossEntropyLoss()    
+        conf.num_folds = 4
 #--------------------Inference Config ------------------------
     else:
         conf.facebank_path = conf.data_path/'facebank'
