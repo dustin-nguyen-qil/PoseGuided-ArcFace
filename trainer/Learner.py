@@ -1,6 +1,6 @@
-from data.data_pipe import de_preprocess, get_loaders, get_val_data
 from model.model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm, PoseArcFace
 from verifacation import evaluate
+import os.path as osp
 import torch
 from torch import optim
 import numpy as np
@@ -16,21 +16,22 @@ import bcolz
 
 #--------------------Training Config -------------- 
 class face_learner(object):
-    def __init__(self, conf, inference=False):
-        print(conf)
+    def __init__(self, conf, class_num, inference=False):
+
         if conf.use_mobilfacenet:
             self.model = MobileFaceNet(conf.embedding_size).to(conf.device)
             print('MobileFaceNet model generated')
         else:
             self.model = Backbone(conf.net_depth, conf.drop_ratio, conf.net_mode).to(conf.device)
-            self.load_state(conf, 'final.pth', from_save_folder=True, model_only=True)
+
+            if not conf.train_from_scratch:
+                self.load_state(conf, 'final.pth', from_save_folder=True, model_only=True)
 
             print('{}_{} model generated'.format(conf.net_mode, conf.net_depth))
         
         if not inference:
             self.milestones = conf.milestones
-            self.num_folds = conf.num_folds
-            self.loaders, self.class_num = get_loaders(conf, pose=True)  
+            self.class_num = class_num 
 
             self.writer = SummaryWriter(conf.log_path)
             self.step = 0
@@ -56,13 +57,10 @@ class face_learner(object):
                                     {'params': paras_wo_bn + [self.head.kernel], 'weight_decay': 5e-4},
                                     {'params': paras_only_bn}
                                 ], lr = conf.lr, momentum = conf.momentum)
-            print(self.optimizer)
 #             self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=40, verbose=True)
 
             print('optimizers generated')    
-            # self.board_loss_every = len(self.loaders)//3
-        
-            # self.save_every = len(self.loader)//3
+            print()
             
         else:
             self.threshold = conf.threshold
@@ -192,103 +190,105 @@ class face_learner(object):
                 plt.plot(log_lrs[10:-5], losses[10:-5])
                 return log_lrs, losses    
 
-    def train(self, conf, epochs):
+    def train(self, conf, fold, epochs, train_loader, test_loader, epoch_loss_per_fold):
         self.model.train()
-        epoch_losses_per_fold = {}
-        test_acc_per_fold = []
-        for fold, (train_loader, test_loader) in enumerate(self.loaders):
-            print(f"Fold: {fold} started ============")
-            """
-            Training
-            """
-            epoch_losses_per_fold[fold] = []
-            for e in range(epochs):
-                running_loss = 0.
-                num_corrects = 0
-                total_samples = 0
-                print(f'Epoch {e} in fold {fold} started')
-                if e == self.milestones[0]:
-                    self.schedule_lr()
-                if e == self.milestones[1]:
-                    self.schedule_lr()      
-                if e == self.milestones[2]:
-                    self.schedule_lr()                                 
-                for imgs, labels, yaws in tqdm(iter(train_loader)):
-                    if fold == 0:
-                        labels -= 2
-                    elif fold == 1:
-                        mask = labels > 3
-                        labels[mask] -= 2
-                    elif fold == 2:
-                        mask = labels > 5
-                        labels[mask] -= 2
-                    elif fold == 3:
-                        mask = labels > 7
-                        labels[mask] -= 2
-                    # print(labels)
-                    imgs = imgs.to(conf.device)
-                    labels = labels.to(conf.device)
-                    
-                    self.optimizer.zero_grad()
-                    embeddings = self.model(imgs)
-                    thetas = self.head(embeddings, labels, yaws)
+        
+        """
+        Training
+        """
+        for e in range(epochs):
+            running_loss = 0.
+            num_corrects = 0
+            total_samples = 0
+            print(f'Epoch {e} in fold {fold} started')
+            if e == self.milestones[0]:
+                self.schedule_lr()
+            if e == self.milestones[1]:
+                self.schedule_lr()      
+            if e == self.milestones[2]:
+                self.schedule_lr()                                 
+            for imgs, labels, yaws in tqdm(iter(train_loader)):
+                if fold == 0:
+                    labels -= 2
+                elif fold == 1:
+                    mask = labels > 3
+                    labels[mask] -= 2
+                elif fold == 2:
+                    mask = labels > 5
+                    labels[mask] -= 2
+                elif fold == 3:
+                    mask = labels > 7
+                    labels[mask] -= 2
+        
+                imgs = imgs.to(conf.device)
+                labels = labels.to(conf.device)
+                
+                self.optimizer.zero_grad()
+                embeddings = self.model(imgs)
+                thetas = self.head(embeddings, labels, yaws)
 
-                    _, predicted = torch.max(thetas.data, 1)
-                    num_corrects += (predicted == labels).sum().item()
-                    total_samples += labels.size(0)
+                _, predicted = torch.max(thetas.data, 1)
+                num_corrects += (predicted == labels).sum().item()
+                total_samples += labels.size(0)
 
-                    loss = conf.ce_loss(thetas, labels)
-                    loss.backward()
-                    running_loss += loss.item()
-                    self.optimizer.step()
+                loss = conf.ce_loss(thetas, labels)
+                loss.backward()
+                running_loss += loss.item()
+                self.optimizer.step()
 
-                epoch_loss = running_loss / len(train_loader)
-                epoch_losses_per_fold[fold].append(epoch_loss)
+            epoch_loss = running_loss / len(train_loader)
+            epoch_loss_per_fold[fold].append(epoch_loss)
 
-                train_accuracy = num_corrects / total_samples
+            train_accuracy = num_corrects / total_samples
 
-                if e == epochs - 1:
-                    print(f"==== End training for fold {fold} | Train Acc: {train_accuracy*100:.2f}%")
-                    # if self.step % self.board_loss_every == 0 and self.step != 0:
-                    #     loss_board = running_loss / self.board_loss_every
-                    #     self.writer.add_scalar('train_loss', loss_board, self.step)
-                    #     running_loss = 0.
-                        
-                    # self.step += 1
-            print(f"==== Done training for fold {fold} =====")
-
-            """
-            Testing
-            """
-            print(f"==== Start testing for fold {fold} =====")
-            self.model.eval()
-            running_test_loss = 0.
-            num_test_corrects,total_test_samples = 0, 0 
-            with torch.inference_mode():
-                for imgs, labels, yaws in tqdm(iter(test_loader)):
-                        
-                    labels = labels - min(labels)
-
-                    imgs = imgs.to(conf.device)
-                    labels = labels.to(conf.device)
-                    embeddings = self.model(imgs)
-                    thetas = self.head(embeddings, labels, yaws)
-                    test_loss = conf.ce_loss(thetas, labels)
-                    running_test_loss += test_loss.item()
-
-                    _, predicted = torch.max(thetas.data, 1)
-                    num_test_corrects += (predicted == labels).sum().item()
-                    total_test_samples += labels.size(0)
-
-            test_accuracy = num_test_corrects / total_test_samples
-            test_acc_per_fold.append(test_accuracy)
-
-            print(f"Test Acc of fold {fold}: {test_accuracy*100:.2f}%")
-            print()
-            if conf.pose:       
-                self.save_state(conf, to_save_folder=True, extra=f'fold{fold}_Acc:{test_accuracy}_net_droneface_with_pose')
+            if e == epochs - 1:
+                print(f"==== Done training for fold {fold} | Training Accuracy: {train_accuracy*100:.3f}% =====")
             else:
-                self.save_state(conf, to_save_folder=True, extra=f'fold{fold}_Acc:{test_accuracy}_net_droneface_without_pose')
+                print(f"Training loss: {epoch_loss:.3f} | Training Accuracy: {train_accuracy*100:.3f}%")
+        print()
+        """
+        Testing
+        """
+        print(f"==== Start testing for fold {fold} =====")
+        self.model.eval()
+        running_test_loss = 0.
+        num_test_corrects, total_test_samples = 0, 0 
+    
+        for imgs, labels, yaws in tqdm(iter(test_loader)):
+            
+            labels = labels - fold*2 
+            
+            print(f"Labels: {labels}")
+            imgs = imgs.to(conf.device)
+            labels = labels.to(conf.device)
+
+            with torch.inference_mode():
+                embeddings = self.model(imgs)
+                thetas = self.head(embeddings, labels, yaws)
+
+            _, predicted = torch.max(thetas.data, 1)
+            print(f"Predicted: {predicted}")
+            num_test_correct = (predicted == labels).sum().item()
+            print(f"Predicted: {num_test_correct}")
+            num_test_corrects += num_test_correct
+            total_test_samples += labels.size(0)
+
+            test_loss = conf.ce_loss(thetas, labels)
+            running_test_loss += test_loss.item()
+
+               
+        test_accuracy = num_test_corrects / total_test_samples
+
+        print(f"Test Accuracy of fold {fold}: {test_accuracy*100:.2f}%")
+        print(f"====== End fold {fold} =======")
+        print()
+        if conf.pose:       
+            torch.save(self.model.state_dict(), osp.join(conf.save_path, f'Fold{fold}_Acc:{test_accuracy:.2f}_net_droneface_with_pose'))
+        else:
+            torch.save(self.model.state_dict(), osp.join(conf.save_path, f'Fold{fold}_Acc:{test_accuracy:.2f}_net_droneface_without_pose'))
+
+        return epoch_loss_per_fold, test_accuracy
+
     def schedule_lr(self):
         for params in self.optimizer.param_groups:                
             params['lr'] /= 10

@@ -23,11 +23,15 @@ def get_config(training = True):
                     trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                 ])
     conf.data_mode = 'droneface'
+
+    # Train model from scratch insteading loading pretrained weights
+    conf.train_from_scratch = False
+
     conf.pose = True # train model on DroneFace with Pose
     conf.droneface_folder = conf.data_path/'photos_all_faces'/'all_data'
     conf.droneface_train_json = conf.data_path/'photos_all_faces'/'all_data.json'
 
-    conf.batch_size = 32 # retrain with droneface 
+    conf.batch_size = 16 # retrain with droneface 
 #   conf.batch_size = 200 # mobilefacenet
 #--------------------Training Config ------------------------    
     if training:        
