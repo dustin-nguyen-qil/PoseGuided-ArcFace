@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--batch_size", help="batch_size", default=96, type=int)
     parser.add_argument("-w", "--num_workers", help="workers number", default=3, type=int)
     parser.add_argument("-d", "--data_mode",default='droneface', type=str)
-    parser.add_argument("-fold", "--num_folds", help="number of folds in kfold", default=5, type=int)
+    parser.add_argument("-fold", "--num_folds", help="number of folds in kfold", default=4, type=int)
 
     args = parser.parse_args()
 

@@ -250,7 +250,7 @@ class face_learner(object):
                 print(f"Training loss: {epoch_loss:.3f} | Training Accuracy: {train_accuracy*100:.3f}%")
         print()
         """
-        Testing
+        Validation
         """
         print(f"==== Start Inference for fold {fold} =====")
         self.model.eval()
