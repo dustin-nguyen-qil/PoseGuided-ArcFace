@@ -18,18 +18,29 @@ def get_config(training = True):
     conf.drop_ratio = 0.6
     conf.net_mode = 'ir_se' # or 'ir'
     conf.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
+    conf.train_transform = trans.Compose([
+        trans.RandomHorizontalFlip(),
+        trans.Resize((112, 112)),
+        trans.ToTensor(),
+        trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+        trans.RandomErasing(p=0.5, scale=(0.02, 0.2), ratio=(0.3, 3.3))    
+    ])
+
     conf.test_transform = trans.Compose([
+                    trans.Resize((112, 112)),
                     trans.ToTensor(),
                     trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                 ])
     conf.data_mode = 'droneface'
 
     # Train model from scratch insteading loading pretrained weights
-    conf.train_from_scratch = False
+    conf.train_from_scratch = True 
 
-    conf.pose = True # train model on DroneFace with Pose
+    conf.pose = True # train Pose-guided model or original ArcFace model on DroneFace 
+
     conf.droneface_folder = conf.data_path/'photos_all_faces'/'all_data'
-    conf.droneface_train_json = conf.data_path/'photos_all_faces'/'all_data.json'
+    conf.droneface_json = conf.data_path/'photos_all_faces'/'all_data.json'
 
     conf.batch_size = 16 # retrain with droneface 
 #   conf.batch_size = 200 # mobilefacenet
@@ -45,7 +56,6 @@ def get_config(training = True):
 #         conf.num_workers = 4 # when batchsize is 200
         conf.num_workers = 3
         conf.ce_loss = CrossEntropyLoss()    
-        conf.num_folds = 4
 #--------------------Inference Config ------------------------
     else:
         conf.facebank_path = conf.data_path/'facebank'

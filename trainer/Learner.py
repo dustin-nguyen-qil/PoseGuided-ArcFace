@@ -225,7 +225,10 @@ class face_learner(object):
                 
                 self.optimizer.zero_grad()
                 embeddings = self.model(imgs)
-                thetas = self.head(embeddings, labels, yaws)
+                if conf.pose:
+                    thetas = self.head(embeddings, labels, yaws)
+                else:
+                    thetas = self.head(embeddings, labels)
 
                 _, predicted = torch.max(thetas.data, 1)
                 num_corrects += (predicted == labels).sum().item()
@@ -249,45 +252,42 @@ class face_learner(object):
         """
         Testing
         """
-        print(f"==== Start testing for fold {fold} =====")
+        print(f"==== Start Inference for fold {fold} =====")
         self.model.eval()
-        running_test_loss = 0.
-        num_test_corrects, total_test_samples = 0, 0 
-    
-        for imgs, labels, yaws in tqdm(iter(test_loader)):
-            
-            labels = labels - fold*2 
-            
-            print(f"Labels: {labels}")
-            imgs = imgs.to(conf.device)
-            labels = labels.to(conf.device)
+        # running_test_loss = 0.
+        # num_test_corrects, total_test_samples = 0, 0 
+
+        test_embeddings = []
+        for img, label, yaws in tqdm(iter(test_loader)):
+            label = label - 2*fold
+            img = img.to(conf.device)
 
             with torch.inference_mode():
-                embeddings = self.model(imgs)
-                thetas = self.head(embeddings, labels, yaws)
+                embedding = self.model(img)
+            test_embeddings.append({'embedding': embedding.detach().cpu().numpy(), 'label': label.numpy()[0]})
 
-            _, predicted = torch.max(thetas.data, 1)
-            print(f"Predicted: {predicted}")
-            num_test_correct = (predicted == labels).sum().item()
-            print(f"Predicted: {num_test_correct}")
-            num_test_corrects += num_test_correct
-            total_test_samples += labels.size(0)
+        #     _, predicted = torch.max(thetas.data, 1)
+        #     print(f"Predicted: {predicted}")
+        #     num_test_correct = (predicted == labels).sum().item()
+        #     print(f"Predicted: {num_test_correct}")
+        #     num_test_corrects += num_test_correct
+        #     total_test_samples += labels.size(0)
 
-            test_loss = conf.ce_loss(thetas, labels)
-            running_test_loss += test_loss.item()
+        #     test_loss = conf.ce_loss(thetas, labels)
+        #     running_test_loss += test_loss.item()
 
                
-        test_accuracy = num_test_corrects / total_test_samples
+        # test_accuracy = num_test_corrects / total_test_samples
 
-        print(f"Test Accuracy of fold {fold}: {test_accuracy*100:.2f}%")
-        print(f"====== End fold {fold} =======")
-        print()
+        # print(f"Test Accuracy of fold {fold}: {test_accuracy*100:.2f}%")
+        # print(f"====== End fold {fold} =======")
+        # print()
         if conf.pose:       
-            torch.save(self.model.state_dict(), osp.join(conf.save_path, f'Fold{fold}_Acc:{test_accuracy:.2f}_net_droneface_with_pose'))
+            torch.save(self.model.state_dict(), osp.join(conf.save_path, f'Model_PoseGuided_Fold{fold}'))
         else:
-            torch.save(self.model.state_dict(), osp.join(conf.save_path, f'Fold{fold}_Acc:{test_accuracy:.2f}_net_droneface_without_pose'))
+            torch.save(self.model.state_dict(), osp.join(conf.save_path, f'Model_Original_Fold{fold}'))
 
-        return epoch_loss_per_fold, test_accuracy
+        return epoch_loss_per_fold, test_embeddings
 
     def schedule_lr(self):
         for params in self.optimizer.param_groups:                

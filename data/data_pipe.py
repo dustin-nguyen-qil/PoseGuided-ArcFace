@@ -22,10 +22,11 @@ def de_preprocess(tensor):
 
 
 class DroneFace(Dataset):
-    def __init__(self, json_path, transform) -> None:
+    def __init__(self, json_path, transform, indices) -> None:
         super().__init__()
         with open(json_path, 'rb') as f:
             self.img_list = json.load(f)
+        self.img_list = [self.img_list[i] for i in indices]
         self.json_path = json_path
         self.transform = transform
 
@@ -41,30 +42,21 @@ class DroneFace(Dataset):
         img = self.transform(img)
         return img, p_id, abs(yaw)
 
-def get_loaders(conf, num_folds, pose=False):
-    train_transform = trans.Compose([
-        # trans.RandomHorizontalFlip(),
-        trans.Resize((112, 112)),
-        trans.ToTensor(),
-        trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
-    ])
-    kfold = KFold(n_splits=num_folds, shuffle=False)
-    if pose:    
-        ds = DroneFace(conf.droneface_train_json, train_transform)
-    else:
-        ds = ImageFolder(conf.droneface_folder, train_transform)
+def get_loaders(conf, num_folds):
     
-    # dataset_size = len(ds)
-    # test_size = dataset_size / num_folds
-    splits = kfold.split(ds)
+    data_indices = range(1240)
+
+    kfold = KFold(n_splits=num_folds, shuffle=False)
+    splits = kfold.split(data_indices)
+    # ds = DroneFace(conf.droneface_json, conf.train_transform)
 
     loaders = []
     for (train_idx, test_idx) in splits:
-        train_set = Subset(ds, train_idx)
+        train_set = DroneFace(conf.droneface_json, conf.train_transform, train_idx)
         train_loader = DataLoader(train_set, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
 
-        test_set = Subset(ds, test_idx)
-        test_loader = DataLoader(test_set, batch_size=conf.batch_size, shuffle=False, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
+        test_set = DroneFace(conf.droneface_json, conf.test_transform, test_idx)
+        test_loader = DataLoader(test_set, batch_size=1, shuffle=False, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
         loaders.append((train_loader, test_loader))
     class_num = 8
     return loaders, class_num
