@@ -37,12 +37,12 @@ def get_config(training = True):
     # Train model from scratch insteading loading pretrained weights
     conf.train_from_scratch = True 
 
-    conf.pose = True # train Pose-guided model or original ArcFace model on DroneFace 
+    conf.pose = False # train Pose-guided model or original ArcFace model on DroneFace 
 
     conf.droneface_folder = conf.data_path/'photos_all_faces'/'all_data'
     conf.droneface_json = conf.data_path/'photos_all_faces'/'all_data.json'
 
-    conf.batch_size = 16 # retrain with droneface 
+    conf.batch_size = 16# retrain with droneface 
 #   conf.batch_size = 200 # mobilefacenet
 #--------------------Training Config ------------------------    
     if training:        

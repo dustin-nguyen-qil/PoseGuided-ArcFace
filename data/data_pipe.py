@@ -44,20 +44,19 @@ class DroneFace(Dataset):
 
 def get_loaders(conf, num_folds):
     
-    data_indices = range(124*8)
+    data_indices = range(1240)
 
     kfold = KFold(n_splits=num_folds, shuffle=False)
     splits = kfold.split(data_indices)
     # ds = DroneFace(conf.droneface_json, conf.train_transform)
 
     loaders = []
-    for (train_idx, val_idx) in splits:
+    for (train_idx, test_idx) in splits:
         train_set = DroneFace(conf.droneface_json, conf.train_transform, train_idx)
         train_loader = DataLoader(train_set, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
-
-        val_set = DroneFace(conf.droneface_json, conf.test_transform, val_idx)
-        val_loader = DataLoader(val_set, batch_size=conf.batch_size, shuffle=False, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
-        loaders.append((train_loader, val_loader))
+        test_set = DroneFace(conf.droneface_json, conf.test_transform, test_idx)
+        test_loader = DataLoader(test_set, batch_size=1, shuffle=False, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
+        loaders.append((train_loader, test_loader))
     class_num = 8
     return loaders, class_num
 
