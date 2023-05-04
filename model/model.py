@@ -305,7 +305,7 @@ class Am_softmax(Module):
         return output
 
 class PoseArcFace(Module):
-    def __init__(self, embedding_size, classnum = 8, s=64., m1=0.5, m2=0.1) -> None:
+    def __init__(self, embedding_size, classnum = 8, s=64., m1=0.5, m2=0.2) -> None:
         """ 
             m1 is base margin, m2 is additional margin based on pose
             default: s = 64, m1 = 0.5 as in ArcFace paper
@@ -324,13 +324,14 @@ class PoseArcFace(Module):
         # initial kernel
         self.kernel.data.uniform_(-1, 1).renorm_(2,1,1e-5).mul_(1e5)
     
-    def forward(self, input, label, yaw):
+    def forward(self, input, label, yaw, height):
         nB = len(input)
         weight_norm = l2_norm(self.kernel, axis = 0)
         output = []
 
         for i in range(nB):
-            ratio = yaw[i].numpy() / 90
+            ratio = 0.5 * (yaw[i].numpy() / 90 + height[i].numpy() / 20)
+            # ratio = height[i].numpy() / 10
             m = self.m1 + ratio * self.m2 
             cos_m = math.cos(m)
             sin_m = math.sin(m)
@@ -353,10 +354,5 @@ class PoseArcFace(Module):
             out[label[i]] = cos_theta_m.squeeze(0)[label[i]]
             out *= self.s
             output.append(out)
-         # can use torch.where if new version of torch
-        
-        # idx_ = torch.arange(0, nB, dtype=torch.long)
-        # output[idx_, label] = cos_theta_m[idx_, label]
-        # output *= self.s
 
         return torch.stack(output)

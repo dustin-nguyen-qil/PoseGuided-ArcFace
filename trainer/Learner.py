@@ -207,7 +207,7 @@ class face_learner(object):
                 self.schedule_lr()      
             if e == self.milestones[2]:
                 self.schedule_lr()                                 
-            for imgs, labels, yaws in tqdm(iter(train_loader)):
+            for imgs, labels, yaws, heights in tqdm(iter(train_loader)):
                 if fold == 0:
                     labels -= 2
                 elif fold == 1:
@@ -226,7 +226,7 @@ class face_learner(object):
                 self.optimizer.zero_grad()
                 embeddings = self.model(imgs)
                 if conf.pose:
-                    thetas = self.head(embeddings, labels, yaws)
+                    thetas = self.head(embeddings, labels, yaws, heights)
                 else:
                     thetas = self.head(embeddings, labels)
 
@@ -258,30 +258,20 @@ class face_learner(object):
         # num_test_corrects, total_test_samples = 0, 0 
 
         test_embeddings = []
-        for img, label, yaws in tqdm(iter(test_loader)):
-            label = label - 2*fold
+        for img, label, _, _ in tqdm(iter(test_loader)):
+            if label == 10:
+                label -= 8
+            else:
+                label = label - 2*fold
             img = img.to(conf.device)
 
             with torch.inference_mode():
                 embedding = self.model(img)
             test_embeddings.append({'embedding': embedding.detach().cpu().numpy(), 'label': label.numpy()[0]})
 
-        #     _, predicted = torch.max(thetas.data, 1)
-        #     print(f"Predicted: {predicted}")
-        #     num_test_correct = (predicted == labels).sum().item()
-        #     print(f"Predicted: {num_test_correct}")
-        #     num_test_corrects += num_test_correct
-        #     total_test_samples += labels.size(0)
-
-        #     test_loss = conf.ce_loss(thetas, labels)
-        #     running_test_loss += test_loss.item()
-
-               
-        # test_accuracy = num_test_corrects / total_test_samples
-
-        # print(f"Test Accuracy of fold {fold}: {test_accuracy*100:.2f}%")
-        # print(f"====== End fold {fold} =======")
-        # print()
+        
+        print(f"====== End fold {fold} =======")
+        print()
         if conf.pose:       
             torch.save(self.model.state_dict(), osp.join(conf.save_path, f'Model_PoseGuided_Fold{fold}'))
         else:

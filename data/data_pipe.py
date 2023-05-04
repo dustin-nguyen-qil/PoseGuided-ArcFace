@@ -36,15 +36,17 @@ class DroneFace(Dataset):
     def __getitem__(self, index):
         item = self.img_list[index]
         img_path = item['img_path']
+        height = int(img_path.split('/')[-1].split('_')[2])
         p_id = item['p_id']
         yaw = item['yaw']
         img = Image.open(img_path)
         img = self.transform(img)
-        return img, p_id, abs(yaw)
+        return img, p_id, abs(yaw), height
 
 def get_loaders(conf, num_folds):
     
     data_indices = range(1240)
+    last_id_indices = list(range(1240, 124*11))
 
     kfold = KFold(n_splits=num_folds, shuffle=False)
     splits = kfold.split(data_indices)
@@ -54,7 +56,7 @@ def get_loaders(conf, num_folds):
     for (train_idx, test_idx) in splits:
         train_set = DroneFace(conf.droneface_json, conf.train_transform, train_idx)
         train_loader = DataLoader(train_set, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
-        test_set = DroneFace(conf.droneface_json, conf.test_transform, test_idx)
+        test_set = DroneFace(conf.droneface_json, conf.test_transform, test_idx.tolist()+last_id_indices)
         test_loader = DataLoader(test_set, batch_size=1, shuffle=False, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
         loaders.append((train_loader, test_loader))
     class_num = 8
