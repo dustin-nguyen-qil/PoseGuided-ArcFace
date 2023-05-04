@@ -4,21 +4,21 @@ This repository contains the implementation of the paper "On Face Recognition at
 
 ## Getting Started
 Create a virtual environment with `Python=3.6` using conda:
-```python
-    $ conda create -n frald python=3.6
-    $ conda activate frald
+```bash
+$ conda create -n frald python=3.6
+$ conda activate frald
 ```
 
 Clone the repository:
 
-```python
-    $ git clone https://github.com/dustin-nguyen-qil/PoseGuided-ArcFace.git
+```bash
+$ git clone https://github.com/dustin-nguyen-qil/PoseGuided-ArcFace.git
 ```
 
 To install the dependencies of the project, run: 
 
-``` python
-    $ pip install -r requirements.txt
+```bash
+$ pip install -r requirements.txt
 ```
 <!-- For the installation of torch using "pip" run the following command
 
