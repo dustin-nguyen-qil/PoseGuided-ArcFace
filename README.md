@@ -96,6 +96,7 @@ You can run training on the Proposed Pose-guided Model by going to `config/confi
 ```
 where `-b` is batch size and `-e` is the number of epochs.
 
+### Trained models
 Trained models of each fold and extracted test embeddings would be automatically saved in `work_space`.
 ## Acknowledments
 
