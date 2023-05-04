@@ -63,7 +63,7 @@ You can run the following command line and refer to `outputs` to see the plots o
 $ python evaluate.py
 
 ```
-To see the evaluation results of each training folds, refer to `evaluation.ipynb`.
+To see the evaluation results of each training fold and interact with the results, refer to `evaluation.ipynb`.
 
 ## Training models
 
