@@ -1,18 +1,15 @@
-from model.model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm, PoseArcFace
-from verifacation import evaluate
+from model.model import Backbone, Arcface, MobileFaceNet, l2_norm, PoseArcFace
 import os.path as osp
 import torch
 from torch import optim
 import numpy as np
 from tqdm import tqdm
-from tensorboardX import SummaryWriter
 from matplotlib import pyplot as plt
 plt.switch_backend('agg')
 from utils.utils import get_time, gen_plot, hflip_batch, separate_bn_paras
 from PIL import Image
 from torchvision import transforms as trans
 import math
-import bcolz
 
 #--------------------Training Config -------------- 
 class face_learner(object):
@@ -33,7 +30,6 @@ class face_learner(object):
             self.milestones = conf.milestones
             self.class_num = class_num 
 
-            self.writer = SummaryWriter(conf.log_path)
             self.step = 0
             if conf.pose:
                 self.head = PoseArcFace(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
@@ -93,42 +89,7 @@ class face_learner(object):
             self.optimizer.load_state_dict(torch.load(save_path/'optimizer_{}'.format(fixed_str)))
         print("load model successfully")
         
-    def board_val(self, db_name, accuracy, best_threshold, roc_curve_tensor):
-        self.writer.add_scalar('{}_accuracy'.format(db_name), accuracy, self.step)
-        self.writer.add_scalar('{}_best_threshold'.format(db_name), best_threshold, self.step)
-        self.writer.add_image('{}_roc_curve'.format(db_name), roc_curve_tensor, self.step)
-#         self.writer.add_scalar('{}_val:true accept ratio'.format(db_name), val, self.step)
-#         self.writer.add_scalar('{}_val_std'.format(db_name), val_std, self.step)
-#         self.writer.add_scalar('{}_far:False Acceptance Ratio'.format(db_name), far, self.step)
         
-    def evaluate(self, conf, carray, issame, nrof_folds = 5, tta = False):
-        self.model.eval()
-        idx = 0
-        embeddings = np.zeros([len(carray), conf.embedding_size])
-        with torch.no_grad():
-            while idx + conf.batch_size <= len(carray):
-                batch = torch.tensor(carray[idx:idx + conf.batch_size])
-                if tta:
-                    fliped = hflip_batch(batch)
-                    emb_batch = self.model(batch.to(conf.device)) + self.model(fliped.to(conf.device))
-                    embeddings[idx:idx + conf.batch_size] = l2_norm(emb_batch)
-                else:
-                    embeddings[idx:idx + conf.batch_size] = self.model(batch.to(conf.device)).cpu()
-                idx += conf.batch_size
-            if idx < len(carray):
-                batch = torch.tensor(carray[idx:])            
-                if tta:
-                    fliped = hflip_batch(batch)
-                    emb_batch = self.model(batch.to(conf.device)) + self.model(fliped.to(conf.device))
-                    embeddings[idx:] = l2_norm(emb_batch)
-                else:
-                    embeddings[idx:] = self.model(batch.to(conf.device)).cpu()
-        tpr, fpr, accuracy, best_thresholds = evaluate(embeddings, issame, nrof_folds)
-        buf = gen_plot(fpr, tpr)
-        roc_curve = Image.open(buf)
-        roc_curve_tensor = trans.ToTensor()(roc_curve)
-        return accuracy.mean(), best_thresholds.mean(), roc_curve_tensor
-    
     def find_lr(self,
                 conf,
                 init_value=1e-8,
