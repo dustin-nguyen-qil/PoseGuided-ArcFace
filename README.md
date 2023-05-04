@@ -84,7 +84,7 @@ Unzip the file, then put `photos_all_faces` inside `data`
 You can run training on the original ArcFace model by going to `config/config.py` and change `conf.pose = False`, then execute
 
 ```bash
-    $ python train.py -b 16 -e 20 
+$ python train.py -b 16 -e 20 
 ```
 where `-b` is batch size and `-e` is the number of epochs.
 ### Train DroneFace with Proposed Pose-guided Model
@@ -92,7 +92,7 @@ where `-b` is batch size and `-e` is the number of epochs.
 You can run training on the Proposed Pose-guided Model by going to `config/config.py` and change `conf.pose = True`, then execute
 
 ```bash
-    $ python train.py -b 16 -e 20 
+$ python train.py -b 16 -e 20 
 ```
 where `-b` is batch size and `-e` is the number of epochs.
 
