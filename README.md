@@ -5,25 +5,25 @@ This repository contains the implementation of the paper "On Face Recognition at
 ## Getting Started
 Create a virtual environment with `Python=3.6` using conda:
 ```bash
-$ conda create -n frald python=3.6
-$ conda activate frald
+conda create -n frald python=3.6
+conda activate frald
 ```
 
 Clone the repository:
 
 ```bash
-$ git clone https://github.com/dustin-nguyen-qil/PoseGuided-ArcFace.git
+git clone https://github.com/dustin-nguyen-qil/PoseGuided-ArcFace.git
 ```
 
 To install the dependencies of the project, run: 
 
 ```bash
-$ pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 <!-- For the installation of torch using "pip" run the following command
 
 ``` python
-    $ pip3 install torch torchvision -f https://download.pytorch.org/whl/torch_stable.html
+    pip3 install torch torchvision -f https://download.pytorch.org/whl/torch_stable.html
 ``` -->
 ## Repository content
 
@@ -60,7 +60,7 @@ You can download the extracted test embeddings and trained models from [here](ht
 You can run the following command line and refer to `outputs` to see the plots of ROC Curve and CMC Curve results averaged from 5 training folds.
 
 ```bash
-$ python evaluate.py
+python evaluate.py
 
 ```
 To see the evaluation results of each training fold and interact with the results, refer to `evaluation.ipynb`.
@@ -84,7 +84,7 @@ Unzip the file, then put `photos_all_faces` inside `data`
 You can run training on the original ArcFace model by going to `config/config.py` and change `conf.pose = False`, then execute
 
 ```bash
-$ python train.py -b 16 -e 20 
+python train.py -b 16 -e 20 
 ```
 where `-b` is batch size and `-e` is the number of epochs.
 ### Train DroneFace with Proposed Pose-guided Model
@@ -92,7 +92,7 @@ where `-b` is batch size and `-e` is the number of epochs.
 You can run training on the Proposed Pose-guided Model by going to `config/config.py` and change `conf.pose = True`, then execute
 
 ```bash
-$ python train.py -b 16 -e 20 
+python train.py -b 16 -e 20 
 ```
 where `-b` is batch size and `-e` is the number of epochs.
 
