@@ -8,7 +8,7 @@ from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import numpy as np
 import cv2
-import bcolz
+# import bcolz
 import pickle
 import torch
 import mxnet as mx
