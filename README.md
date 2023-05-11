@@ -1,6 +1,6 @@
 # On Face Recognition at Long Distance with Pose-Guided Angular Margin Loss
 
-This repository contains the implementation of the paper "On Face Recognition at Long Distance with Pose-Guided Angular Margin Loss", which proposes a new loss function called Pose-Guided Angular Margin Loss (PGAML) that combines both pose information and angular margin loss to enhance face recognition accuracy at long distances.
+This repository contains the implementation of the project "On Face Recognition at Long Distance with Pose-Guided Angular Margin Loss", which proposes a new loss function called Pose-Guided Angular Margin Loss (PGAML) that combines both pose information and angular margin loss to enhance face recognition accuracy at long distances.
 
 ## Getting Started
 Create a virtual environment with `Python=3.6` using conda:
